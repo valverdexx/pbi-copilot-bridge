@@ -1,0 +1,8 @@
+{
+  "name": "pbi-copilot-bridge",
+  "version": "1.0.0",
+  "description": "Bridge entre Power BI e Copilot Studio",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}
