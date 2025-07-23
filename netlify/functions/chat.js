@@ -1,102 +1,114 @@
-// Forçando um novo deploy para sincronizar cabeçalhos de CORS
 const fetch = require('node-fetch');
 
-// Função principal da Netlify
 exports.handler = async (event, context) => {
-  // **CABEÇALHOS DE PERMISSÃO REFORÇADOS E SINCRONIZADOS**
-  // Estes cabeçalhos correspondem exatamente à configuração robusta do netlify.toml
+  // Headers CORS mais específicos para Power BI
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-    'Content-Type': 'application/json'
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, HEAD',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+    'Access-Control-Max-Age': '86400',
+    'Content-Type': 'application/json',
+    'Vary': 'Origin'
   };
 
-  // Responde imediatamente a requisições de pre-flight (OPTIONS) do navegador
+  // Resposta para preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
-      statusCode: 204, // 204 No Content é a resposta padrão para pre-flight
+      statusCode: 200,
       headers: headers,
       body: ''
     };
   }
 
-  // Garante que o método seja POST para a execução principal
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Método não permitido' }) };
+    return { 
+      statusCode: 405, 
+      headers, 
+      body: JSON.stringify({ error: 'Método não permitido' }) 
+    };
   }
 
   try {
     const { question, context } = JSON.parse(event.body);
-    console.log('📊 Dados recebidos do Power BI:', { question });
+    console.log('📊 Pergunta recebida:', question);
 
     const contextMessage = prepareContextForCopilot(context, question);
     const copilotResponse = await sendToCopilot(contextMessage);
     
     return {
       statusCode: 200,
-      headers, // Devolve os mesmos cabeçalhos na resposta final
+      headers,
       body: JSON.stringify({ answer: copilotResponse })
     };
 
   } catch (error) {
-    console.error('❌ Erro na função Netlify:', error);
+    console.error('❌ Erro:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Erro interno do servidor', details: error.message })
+      body: JSON.stringify({ 
+        error: 'Erro interno', 
+        details: error.message 
+      })
     };
   }
 };
 
-// Prepara o contexto para o Copilot
 function prepareContextForCopilot(context, question) {
   if (!context || !context.hasData) {
-    return `Pergunta: ${question}\n\nContexto: Nenhum dado disponível no momento.`;
+    return `Pergunta: ${question}\n\nContexto: Nenhum dado disponível.`;
   }
-  let contextText = `Pergunta do usuário: "${question}"\n\n`;
-  contextText += `Analise os seguintes dados do Power BI:\n`;
-  contextText += `- Total de registros no filtro atual: ${context.rowCount}\n`;
-  contextText += `- Campos disponíveis: ${context.columns.map(c => c.name).join(', ')}\n\n`;
+  
+  let contextText = `Pergunta: "${question}"\n\n`;
+  contextText += `Dados do Power BI:\n`;
+  contextText += `- Registros: ${context.rowCount}\n`;
+  contextText += `- Campos: ${context.columns.map(c => c.name).join(', ')}\n\n`;
+  
   if (context.sampleData && context.sampleData.length > 0) {
-    contextText += `Amostra de dados (primeiros ${Math.min(5, context.sampleData.length)} registros):\n`;
-    context.sampleData.slice(0, 5).forEach((row, index) => {
-      contextText += `${index + 1}. ${JSON.stringify(row)}\n`;
+    contextText += `Amostra (${Math.min(3, context.sampleData.length)} registros):\n`;
+    context.sampleData.slice(0, 3).forEach((row, i) => {
+      contextText += `${i + 1}. ${JSON.stringify(row)}\n`;
     });
   }
+  
   return contextText;
 }
 
-// Lógica de Polling para comunicar com o Copilot
 async function sendToCopilot(message) {
   const directLineSecret = process.env.COPILOT_SECRET;
   if (!directLineSecret) {
-    throw new Error("A variável de ambiente COPILOT_SECRET não está configurada na Netlify.");
+    throw new Error("COPILOT_SECRET não configurada");
   }
 
-  // 1. Inicia a conversa
+  // Inicia conversa
   const convResponse = await fetch('https://directline.botframework.com/v3/directline/conversations', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${directLineSecret}` }
   });
+  
   if (!convResponse.ok) {
     throw new Error(`Erro ao iniciar conversa: ${convResponse.status}`);
   }
+  
   const { conversationId, token } = await convResponse.json();
 
-  // 2. Envia a mensagem
+  // Envia mensagem
   await fetch(`https://directline.botframework.com/v3/directline/conversations/${conversationId}/activities`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'message', from: { id: 'PowerBIUser' }, text: message })
+    headers: { 
+      'Authorization': `Bearer ${token}`, 
+      'Content-Type': 'application/json' 
+    },
+    body: JSON.stringify({ 
+      type: 'message', 
+      from: { id: 'PowerBIUser' }, 
+      text: message 
+    })
   });
 
-  // 3. Inicia o polling para buscar a resposta
-  const maxAttempts = 10;
-  const delay = 2000;
-
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(resolve => setTimeout(resolve, delay));
+  // Polling para resposta
+  for (let i = 0; i < 8; i++) {
+    await new Promise(resolve => setTimeout(resolve, 2500));
 
     const activitiesResponse = await fetch(`https://directline.botframework.com/v3/directline/conversations/${conversationId}/activities`, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -114,5 +126,5 @@ async function sendToCopilot(message) {
     }
   }
 
-  throw new Error('O Copilot não respondeu a tempo (20s).');
+  throw new Error('Copilot não respondeu em 20s');
 }
