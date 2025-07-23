@@ -1,18 +1,27 @@
+// Forçando um novo deploy para sincronizar cabeçalhos de CORS
 const fetch = require('node-fetch');
 
 // Função principal da Netlify
 exports.handler = async (event, context) => {
+  // **CABEÇALHOS DE PERMISSÃO REFORÇADOS E SINCRONIZADOS**
+  // Estes cabeçalhos correspondem exatamente à configuração robusta do netlify.toml
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
     'Content-Type': 'application/json'
   };
 
+  // Responde imediatamente a requisições de pre-flight (OPTIONS) do navegador
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
+    return {
+      statusCode: 204, // 204 No Content é a resposta padrão para pre-flight
+      headers: headers,
+      body: ''
+    };
   }
 
+  // Garante que o método seja POST para a execução principal
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Método não permitido' }) };
   }
@@ -26,7 +35,7 @@ exports.handler = async (event, context) => {
     
     return {
       statusCode: 200,
-      headers,
+      headers, // Devolve os mesmos cabeçalhos na resposta final
       body: JSON.stringify({ answer: copilotResponse })
     };
 
@@ -58,7 +67,7 @@ function prepareContextForCopilot(context, question) {
   return contextText;
 }
 
-// **LÓGICA ATUALIZADA COM POLLING**
+// Lógica de Polling para comunicar com o Copilot
 async function sendToCopilot(message) {
   const directLineSecret = process.env.COPILOT_SECRET;
   if (!directLineSecret) {
@@ -83,8 +92,8 @@ async function sendToCopilot(message) {
   });
 
   // 3. Inicia o polling para buscar a resposta
-  const maxAttempts = 10; // Tentar 10 vezes
-  const delay = 2000;     // Esperar 2 segundos entre tentativas (Total: 20 segundos)
+  const maxAttempts = 10;
+  const delay = 2000;
 
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(resolve => setTimeout(resolve, delay));
@@ -100,13 +109,10 @@ async function sendToCopilot(message) {
       );
 
       if (botMessages.length > 0) {
-        console.log(`✅ Resposta recebida na tentativa ${i + 1}`);
-        return botMessages[botMessages.length - 1].text; // Retorna a última mensagem do bot
+        return botMessages[botMessages.length - 1].text;
       }
     }
-    console.log(`Tentativa ${i + 1} de ${maxAttempts}: Nenhuma resposta ainda...`);
   }
 
-  // Se o loop terminar sem resposta
   throw new Error('O Copilot não respondeu a tempo (20s).');
 }
