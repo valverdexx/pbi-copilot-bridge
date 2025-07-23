@@ -71,7 +71,7 @@ function prepareContextForCopilot(context, question) {
   return contextText;
 }
 
-// **FUNÇÃO CORRIGIDA** para comunicar com o Copilot Studio
+// Função para comunicar com o Copilot Studio
 async function sendToCopilot(message) {
   const directLineSecret = process.env.COPILOT_SECRET;
   if (!directLineSecret) {
@@ -107,8 +107,8 @@ async function sendToCopilot(message) {
     });
 
     // 3. Aguardar e obter a resposta do bot
-    // É necessário um pequeno delay para o bot processar e responder
-    await new Promise(resolve => setTimeout(resolve, 3000)); 
+    // **ALTERAÇÃO AQUI:** Aumentamos o tempo de espera para 8 segundos
+    await new Promise(resolve => setTimeout(resolve, 8000)); 
 
     const activitiesResponse = await fetch(`https://directline.botframework.com/v3/directline/conversations/${conversationId}/activities`, {
       headers: { 'Authorization': `Bearer ${token}` }
