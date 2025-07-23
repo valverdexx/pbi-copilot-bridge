@@ -1,12 +1,16 @@
+# Configurações de build para a Netlify
 [build]
   functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
 
+# Cabeçalhos de permissão (CORS)
+# **CORREÇÃO AQUI**
+# Aplicando as permissões para o caminho correto das funções
 [[headers]]
-  for = "/api/*"
+  for = "/.netlify/functions/*"
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "POST, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Headers = "Content-Type"
