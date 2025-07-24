@@ -140,5 +140,5 @@ async function sendToCopilot(message) {
     }
   }
 
-  throw new Error('O bot não respondeu a tempo (timeout de 20 segundos).');
+  throw new Error('O bot não respondeu a tempoh (timeout de 20 segundos).');
 }
