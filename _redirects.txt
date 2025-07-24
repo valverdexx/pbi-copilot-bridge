@@ -1,2 +1,3 @@
-/api/chat-simple /.netlify/functions/chat-simple 200
 /api/chat /.netlify/functions/chat 200
+/api/debug /.netlify/functions/debug 200
+/api/chat-simple /.netlify/functions/chat-simple 200
