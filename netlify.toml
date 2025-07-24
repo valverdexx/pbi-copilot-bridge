@@ -1,24 +1,26 @@
-# Configurações de build para a Netlify
+# netlify.toml - Configuração otimizada para Power BI Service
 [build]
   functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
 
-# Cabeçalhos de permissão (CORS) - Versão Reforçada
-# Esta é a configuração mais robusta para garantir que o Power BI Service
-# tenha permissão para acessar a função.
+# Configurações CORS específicas para Power BI Service
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
-    # Permite que qualquer site (incluindo app.powerbi.com) faça a requisição.
     Access-Control-Allow-Origin = "*"
-    
-    # Permite os métodos necessários para a comunicação.
-    Access-Control-Allow-Methods = "POST, GET, OPTIONS"
-    
-    # Permite os cabeçalhos que o navegador envia.
-    Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
-    
-    # Informa ao navegador por quanto tempo ele pode armazenar em cache esta permissão.
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS, HEAD"
+    Access-Control-Allow-Headers = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Referer, User-Agent"
+    Access-Control-Expose-Headers = "Content-Length, Content-Range"
     Access-Control-Max-Age = "86400"
+    Vary = "Accept-Encoding, Origin"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Headers adicionais para todos os arquivos
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
