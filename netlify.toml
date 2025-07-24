@@ -1,88 +1,13 @@
-// netlify/functions/chat.js - VERSÃO SUPER SIMPLES PARA TESTE
+[build]
+  functions = "netlify/functions"
 
-exports.handler = async (event, context) => {
-  // Headers CORS básicos
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json'
-  };
+[build.environment]
+  NODE_VERSION = "18"
 
-  // Resposta para preflight OPTIONS
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
-  }
-
-  try {
-    console.log('🔥 FUNÇÃO ATIVADA!');
-    console.log('Método:', event.httpMethod);
-    console.log('Query:', event.queryStringParameters);
-
-    let question = 'Pergunta não encontrada';
-    let hasData = false;
-    let rowCount = 0;
-
-    // Extrai parâmetros (GET ou POST)
-    if (event.httpMethod === 'GET') {
-      const params = event.queryStringParameters || {};
-      question = decodeURIComponent(params.question || 'Sem pergunta');
-      
-      if (params.context) {
-        try {
-          const context = JSON.parse(decodeURIComponent(params.context));
-          hasData = context.hasData || false;
-          rowCount = context.rowCount || 0;
-        } catch (e) {
-          console.log('Erro ao parsear contexto:', e);
-        }
-      }
-    }
-
-    console.log('✅ Pergunta extraída:', question);
-    console.log('✅ Dados:', { hasData, rowCount });
-
-    // Resposta simples e direta
-    const answer = `🚀 TESTE FUNCIONANDO! 
-    
-Sua pergunta: "${question}"
-Dados disponíveis: ${hasData ? 'SIM' : 'NÃO'}
-Registros: ${rowCount}
-Horário: ${new Date().toLocaleTimeString('pt-BR')}
-Método: ${event.httpMethod}
-
-A comunicação Power BI ↔ Netlify está OK!`;
-
-    const response = {
-      answer: answer,
-      success: true,
-      timestamp: new Date().toISOString(),
-      debug: {
-        method: event.httpMethod,
-        hasContext: !!event.queryStringParameters?.context,
-        questionLength: question.length
-      }
-    };
-
-    console.log('📤 Enviando resposta:', response);
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(response)
-    };
-
-  } catch (error) {
-    console.error('❌ ERRO:', error);
-    
-    return {
-      statusCode: 200, // Sempre 200 para evitar bloqueios
-      headers,
-      body: JSON.stringify({
-        answer: `❌ Erro na função: ${error.message}`,
-        success: false,
-        error: true
-      })
-    };
-  }
-};
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Max-Age = "86400"
