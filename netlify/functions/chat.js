@@ -1,10 +1,9 @@
 // netlify/functions/chat.js
-// VERSÃO DEFINITIVA: Aumenta o timeout e otimiza a comunicação.
+// VERSÃO OTIMIZADA: Respeita o limite de 10 segundos de execução da Netlify.
 
 const fetch = require('node-fetch');
 
 exports.handler = async (event, context) => {
-  // Cabeçalhos CORS robustos para permitir a comunicação
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -12,27 +11,17 @@ exports.handler = async (event, context) => {
     'Content-Type': 'application/json'
   };
 
-  // Resposta para a requisição de "pre-flight" OPTIONS que o navegador envia
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204, // No Content
-      headers: corsHeaders,
-      body: ''
-    };
+    return { statusCode: 204, headers: corsHeaders, body: '' };
   }
 
   try {
-    let question, contextData;
+    const params = event.queryStringParameters || {};
+    const question = decodeURIComponent(params.question || '');
+    const contextData = params.context ? JSON.parse(decodeURIComponent(params.context)) : {};
 
-    // Unifica o tratamento para GET (usado pelo visual) e POST (para testes futuros)
-    if (event.httpMethod === 'GET') {
-      const params = event.queryStringParameters || {};
-      question = decodeURIComponent(params.question || '');
-      contextData = params.context ? JSON.parse(decodeURIComponent(params.context)) : {};
-    } else { // POST
-      const body = JSON.parse(event.body || '{}');
-      question = body.question;
-      contextData = body.context || {};
+    if (!question) {
+        throw new Error("A pergunta não foi fornecida.");
     }
 
     console.log('📥 Pergunta recebida:', question);
@@ -61,10 +50,13 @@ exports.handler = async (event, context) => {
 };
 
 function prepareContextForCopilot(context, question) {
-  if (!context?.hasData) {
+  // Se não houver dados, informa o bot.
+  if (!context || !context.length || context.length === 0) {
     return `Pergunta do usuário: "${question}" (Contexto: Nenhum dado disponível no relatório do Power BI).`;
   }
-  return `Analise os dados do Power BI para responder à pergunta. Pergunta: "${question}". Contexto: ${context.rowCount} registos com as colunas: ${context.columns?.map(c => c.name).join(', ') || 'N/A'}.`;
+  // Extrai os nomes das colunas da primeira linha de dados
+  const columnNames = Object.keys(context[0] || {});
+  return `Analise os dados do Power BI para responder à pergunta. Pergunta: "${question}". Contexto: ${context.length} registos com as colunas: ${columnNames.join(', ') || 'N/A'}.`;
 }
 
 async function sendToCopilot(message) {
@@ -78,7 +70,7 @@ async function sendToCopilot(message) {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${directLineSecret}` }
   });
-  if (!convResponse.ok) throw new Error(`Falha ao iniciar conversa com o Direct Line: ${convResponse.statusText}`);
+  if (!convResponse.ok) throw new Error(`Falha ao iniciar conversa: ${convResponse.statusText}`);
   
   const { conversationId, token } = await convResponse.json();
 
@@ -89,10 +81,10 @@ async function sendToCopilot(message) {
     body: JSON.stringify({ type: 'message', from: { id: 'PowerBI_User' }, text: message })
   });
 
-  // 3. Aguardar resposta com polling (MUDANÇA PRINCIPAL)
-  // Aumentamos o tempo de espera total para 30 segundos (12 tentativas x 2.5s)
-  for (let i = 0; i < 12; i++) { 
-    await new Promise(resolve => setTimeout(resolve, 2500)); // Espera 2.5 segundos
+  // 3. Aguardar resposta com polling (DENTRO DO LIMITE DE 10 SEGUNDOS)
+  // 4 tentativas de 2 segundos = 8 segundos de espera total.
+  for (let i = 0; i < 4; i++) { 
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Espera 2 segundos
 
     const activitiesResponse = await fetch(`https://directline.botframework.com/v3/directline/conversations/${conversationId}/activities`, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -108,6 +100,6 @@ async function sendToCopilot(message) {
     }
   }
 
-  // Se o loop terminar sem resposta, retorna o erro de timeout.
-  throw new Error('Timeout de 30s excedido. O assistente demorou muito para responder.');
+  // Se o loop terminar sem resposta, retorna um erro claro.
+  throw new Error('O assistente demorou mais de 9 segundos para responder (limite do servidor). Tente novamente.');
 }
