@@ -1,0 +1,5 @@
+# Crie este arquivo como _redirects na raiz do projeto (mesmo nível do netlify.toml)
+# Isso cria um proxy que contorna CORS completamente
+
+/api/chat https://copilotassistbi.netlify.app/.netlify/functions/chat 200
+/api/chat-simple https://copilotassistbi.netlify.app/.netlify/functions/chat-simple 200
