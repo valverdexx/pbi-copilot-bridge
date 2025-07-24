@@ -11,6 +11,7 @@ exports.handler = async (event, context) => {
     };
   }
 
+  
   try {
     const { question, context: dataContext } = JSON.parse(event.body);
     
