@@ -5,20 +5,10 @@
 [build.environment]
   NODE_VERSION = "18"
 
-# Cabeçalhos de permissão (CORS) - Versão Reforçada
-# Esta é a configuração mais robusta para garantir que o Power BI Service
-# tenha permissão para acessar a função.
+# Cabeçalhos de permissão (CORS) para a função
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
-    # Permite que qualquer site (incluindo app.powerbi.com) faça a requisição.
     Access-Control-Allow-Origin = "*"
-    
-    # Permite os métodos necessários para a comunicação.
-    Access-Control-Allow-Methods = "POST, GET, OPTIONS"
-    
-    # Permite os cabeçalhos que o navegador envia.
-    Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
-    
-    # Informa ao navegador por quanto tempo ele pode armazenar em cache esta permissão.
-    Access-Control-Max-Age = "86400"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
